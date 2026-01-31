@@ -16,7 +16,15 @@ Most TTS tools are either too simple or too complex. **Qwen3-TTS Studio** is bui
 
 ---
 
-## 🚀 Quick Start
+## � Downloads & Models
+
+- **Google Drive (Recommended)**: [Lite Version - No models included](https://drive.google.com/drive/folders/1VR6mR29t-w_JgL40Plt3BaeJkiGooHRQ?usp=sharing)
+- **Quark Pan**: [Includes both Full and Lite versions](https://pan.quark.cn/s/82838052a0f1)
+- **Official Model Source**: [Qwen3-TTS-12Hz-1.7B-Base (Hugging Face)](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base)
+
+---
+
+## �🚀 Quick Start
 
 ### Method 1: Portable Mode (Recommended) 🎒
 

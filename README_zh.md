@@ -16,6 +16,14 @@
 
 ---
 
+## 📥 下载与模型 (Downloads)
+
+- **夸克网盘 (国内推荐)**: [一个链接，内含完整版与极简版](https://pan.quark.cn/s/82838052a0f1)
+- **Google Drive (海外推荐)**: [仅极简 Lite 版，首次运行需联网](https://drive.google.com/drive/folders/1VR6mR29t-w_JgL40Plt3BaeJkiGooHRQ?usp=sharing)
+- **官方权重来源**: [Qwen3-TTS-12Hz-1.7B-Base (Hugging Face)](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base)
+
+---
+
 ## 🚀 快速开始
 
 ### 方法 1: 极简便携版 (推荐) 🎒

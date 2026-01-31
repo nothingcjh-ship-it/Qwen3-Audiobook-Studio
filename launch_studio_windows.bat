@@ -50,9 +50,17 @@ echo [INFO] Launching Studio (Windows/CUDA Mode)...
 echo        Please wait for the interface to load.
 echo --------------------------------------------------
 
+:: Check if local model exists, fallback to Hugging Face if not
+SET "MODEL_PATH=./models/Qwen3-TTS-12Hz-1.7B-Base"
+IF NOT EXIST "%MODEL_PATH%" (
+    echo [INFO] Local model not found. Using Hugging Face online model...
+    echo [HINT] This will download ~3.5GB on first run. Please wait.
+    SET "MODEL_PATH=Qwen/Qwen3-TTS-12Hz-1.7B-Base"
+)
+
 :: Activate and Run
 call conda activate "%ENV_DIR%"
-python web_demo.py ./models/Qwen3-TTS-12Hz-1.7B-Base --device cuda --dtype float16 --ip 127.0.0.1 --no-flash-attn
+python web_demo.py "%MODEL_PATH%" --device cuda --dtype float16 --ip 127.0.0.1 --no-flash-attn
 
 echo.
 echo [INFO] Server stopped.

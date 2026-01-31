@@ -71,9 +71,17 @@ echo "[INFO] Launching Studio..."
 echo "       Using environment: $ENV_DIR"
 echo "--------------------------------------------------"
 
+# Check if local model exists, fallback to Hugging Face if not
+MODEL_PATH="./models/Qwen3-TTS-12Hz-1.7B-Base"
+if [ ! -d "$MODEL_PATH" ]; then
+    echo "[INFO] Local model not found. Using Hugging Face online model..."
+    echo "[HINT] This will download ~3.5GB on first run. Please wait."
+    MODEL_PATH="Qwen/Qwen3-TTS-12Hz-1.7B-Base"
+fi
+
 # Run directly using the environment's python executable
 # This is more robust than 'conda run' which can silence errors or exit unexpectedly
-"$ENV_DIR/bin/python" web_demo.py ./models/Qwen3-TTS-12Hz-1.7B-Base --device mps --dtype bfloat16 --ip 127.0.0.1 --no-flash-attn
+"$ENV_DIR/bin/python" web_demo.py "$MODEL_PATH" --device mps --dtype bfloat16 --ip 127.0.0.1 --no-flash-attn
 
 echo ""
 echo "[INFO] Server stopped."
