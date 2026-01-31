@@ -1,0 +1,18 @@
+name: qwen3-tts
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pytorch
+  - torchaudio
+  - pip
+  - numpy
+  - transformers
+  - accelerate
+  - pip:
+    - gradio>=4.0.0
+    - huggingface_hub
+    - soundfile
+    - qwen-tts

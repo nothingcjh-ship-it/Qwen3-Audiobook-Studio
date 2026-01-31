@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Mac
+.DS_Store
+
+# Environments
+runtime_env/
+env/
+venv/
+.venv/
+
+# Models & Weights (Crucial: Users will download these)
+models/
+*.pt
+!voices/*.example.pt
+
+# Project Data
+outputs/
+presets.json
+*.log
+
+# Git ignore link
+.agent/

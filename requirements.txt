@@ -1,0 +1,10 @@
+gradio>=4.0.0
+numpy
+huggingface_hub
+transformers
+accelerate
+soundfile
+qwen-tts
+torch
+torchaudio
+
