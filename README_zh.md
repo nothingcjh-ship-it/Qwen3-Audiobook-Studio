@@ -67,7 +67,7 @@
 ## 👤 制作人 (Author)
 
 **Biuboom Flow**
-- 📺 **YouTube**: [@BiuboomFlow](https://www.youtube.com/@BiuboomFlow)
+- 📺 **YouTube**: [@BiuBoomFlow_nothing](https://www.youtube.com/@BiuBoomFlow_nothing)
 - 🚀 如果这个工具对你有帮助，欢迎订阅频道支持我持续开发！
 
 ---

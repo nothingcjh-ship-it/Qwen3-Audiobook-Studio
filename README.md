@@ -67,7 +67,7 @@ Special thanks to the **Alibaba Qwen Team** for open-sourcing the incredible **Q
 ## 👤 Author
 
 **Biuboom Flow**
-- 📺 **YouTube**: [@BiuboomFlow](https://www.youtube.com/@BiuboomFlow)
+- 📺 **YouTube**: [@BiuBoomFlow_nothing](https://www.youtube.com/@BiuBoomFlow_nothing)
 - 🚀 Support the project by subscribing for more AI tools!
 
 ---
