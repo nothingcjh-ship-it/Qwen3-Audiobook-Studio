@@ -9,7 +9,7 @@
 
 Most TTS tools are either too simple or too complex. **Qwen3-TTS Studio** is built specifically for **Audiobook Production**, combining high-end AI research with a user-friendly, portable interface.
 
-- **🚀 Dual-Platform Turbo**: One-click start for Mac (M1 ~ M5) and Windows (CUDA).
+- **🚀 Dual-Platform Turbo**: Mac (M1 ~ M5) and Windows (Beta).
 - **🎭 Pro Casting**: Advanced multi-role orchestration. No more editing audio clips manually.
 - **🎨 Creative Control**: Design unique voices from text descriptions.
 - **🛡️ 100% Privacy**: Runs entirely on your local hardware. No cloud, no subscription fees.
@@ -33,8 +33,9 @@ Most TTS tools are either too simple or too complex. **Qwen3-TTS Studio** is bui
 2.  **Run**: Double-click `launch_studio.command`.
 3.  **Turbo Install**: Automatic local environment setup (`./runtime_env`) using our optimized Pip strategy.
 
-#### 🪟 For Windows Users:
+#### 🪟 For Windows Users (Beta):
 1.  **Run**: Double-click `launch_studio_windows.bat`.
+*(Note: First run will verify/install environment automatically)*
 2.  **GPU Power**: Automatically detects NVIDIA GPUs for high-speed CUDA inference.
 
 ---
