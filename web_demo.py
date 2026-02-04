@@ -249,8 +249,8 @@ def smart_split_text(text, max_len=300):
     raw_lines = text.split('\n')
     
     import re
-    # Split by sentence endings
-    # Pattern: keep the delimiter
+    # Split by sentence endings (Chinese & English)
+    # Pattern: keep the delimiter. Includes . ? ! and Chinese variants
     split_pat = r'([。？！.?!])'
     
     for line in raw_lines:
@@ -262,18 +262,21 @@ def smart_split_text(text, max_len=300):
         # Re-attach delimiters
         sentences = []
         for i in range(0, len(parts)-1, 2):
-            sentences.append(parts[i] + parts[i+1])
-        if len(parts) % 2 == 1 and parts[-1]:
+            sent = parts[i] + parts[i+1]
+            if sent.strip(): sentences.append(sent)
+        
+        # Handle last part if no delimiter
+        if len(parts) % 2 == 1 and parts[-1].strip():
             sentences.append(parts[-1])
             
         for sent in sentences:
             if len(curr) + len(sent) > max_len:
-                if curr: chunks.append(curr)
+                if curr.strip(): chunks.append(curr)
                 curr = sent
             else:
                 curr += sent
                 
-    if curr: chunks.append(curr)
+    if curr.strip(): chunks.append(curr)
     
     # Just in case some chunk is STILL huge (no punctuation), force split
     final_chunks = []
@@ -968,11 +971,40 @@ def run_voice_design(text, lang_disp, instruct, t, p, k, r):
         _, lang_map = _build_choices_and_map(supported_langs)
         language = lang_map.get(lang_disp, "Auto")
         
-        wavs, sr = model.generate_voice_design(
-            text=text, language=language, instruct=instruct,
-            **_gen_kwargs(t, p, k, r)
-        )
-        return _wav_to_gradio_audio(wavs[0], sr), "Success."
+        # AUTO-SLICE LOGIC
+        chunks = smart_split_text(text, max_len=300)
+        full_wav_list = []
+        final_sr = 24000
+        
+        for idx, chunk in enumerate(chunks):
+            # SAFETEY CHECK
+            if not any(c.isalnum() for c in chunk):
+                continue
+                
+            # Note: Voice Design usually takes "instruct" once. 
+            # But we are splitting the target text.
+            # We should keep the same instruct for consistency? Yes.
+            
+            # MEMORY SAFE CALL
+            gc.collect()
+            if torch.backends.mps.is_available(): torch.mps.empty_cache()
+            
+            with torch.no_grad():
+                wavs, _sr = model.generate_voice_design(
+                    text=chunk, language=language, instruct=instruct,
+                    **_gen_kwargs(t, p, k, r)
+                )
+            
+            w = wavs[0]
+            w = AudiobookEngine.trim_audio(w)
+            # Short pause for design flow
+            w = np.concatenate([w, AudiobookEngine.generate_silence(0.2, _sr)])
+            
+            full_wav_list.append(w)
+            final_sr = _sr
+            
+        merged = np.concatenate(full_wav_list)
+        return _wav_to_gradio_audio(merged, final_sr), f"Success ({len(chunks)} parts)."
     except Exception as e: return None, f"Error: {e}"
 
 def run_custom_voice_logic(text, lang_disp, spk_choice, instruct, t, p, k, r):
