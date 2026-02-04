@@ -14,6 +14,7 @@ import tempfile
 import traceback
 import glob
 import json
+import gc
 from dataclasses import asdict
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -164,7 +165,7 @@ class ModelManager:
              del self.tts
              self.tts = None
              if torch.cuda.is_available(): torch.cuda.empty_cache()
-             if torch.backends.mps.is_available(): torch.cuda.empty_cache()
+             if torch.backends.mps.is_available(): torch.mps.empty_cache()
              import gc; gc.collect()
              
         # 4. Load
@@ -234,6 +235,81 @@ def _gen_kwargs(temp, topp, topk, rep_pen):
     return {"temperature": temp, "top_p": topp, "top_k": int(topk), "repetition_penalty": rep_pen, "do_sample": True}
 
 # --- Smart Funcs ---
+def smart_split_text(text, max_len=300):
+    """
+    Splits long text into chunks by punctuation to avoid OOM.
+    Prioritizes splitting at: \n, then [. ? ! 。 ？ ！], then [, ，].
+    """
+    if len(text) < max_len: return [text]
+    
+    chunks = []
+    curr = ""
+    
+    # Priority 1: Newlines (User's natural paragraphs)
+    raw_lines = text.split('\n')
+    
+    import re
+    # Split by sentence endings
+    # Pattern: keep the delimiter
+    split_pat = r'([。？！.?!])'
+    
+    for line in raw_lines:
+        line = line.strip()
+        if not line: continue
+        
+        # Priority 2: Sentence Endings
+        parts = re.split(split_pat, line)
+        # Re-attach delimiters
+        sentences = []
+        for i in range(0, len(parts)-1, 2):
+            sentences.append(parts[i] + parts[i+1])
+        if len(parts) % 2 == 1 and parts[-1]:
+            sentences.append(parts[-1])
+            
+        for sent in sentences:
+            if len(curr) + len(sent) > max_len:
+                if curr: chunks.append(curr)
+                curr = sent
+            else:
+                curr += sent
+                
+    if curr: chunks.append(curr)
+    
+    # Just in case some chunk is STILL huge (no punctuation), force split
+    final_chunks = []
+    for c in chunks:
+        while len(c) > max_len:
+            # Find a comma?
+            comma_split = c[:max_len].rfind('，')
+            if comma_split == -1: comma_split = c[:max_len].rfind(',')
+            
+            if comma_split > max_len // 2: # Good split
+                final_chunks.append(c[:comma_split+1])
+                c = c[comma_split+1:]
+            else: # Hard split
+                final_chunks.append(c[:max_len])
+                c = c[max_len:]
+        if c: final_chunks.append(c)
+        
+    return final_chunks
+
+def generate_long_text_safe(gen_func_callback):
+    """
+    Wrapper to handle long text segmentation and concatenation.
+    callback: function(text_chunk) -> (wav_chunk, sr)
+    """
+    import gc
+    full_wavs = []
+    sr = 24000
+    
+    try:
+        # yield progress? We can't easily yielding progress in this helper without passing yield up.
+        # But we can assume the caller splits text first.
+        # Actually, let's just make the caller loop. 
+        pass 
+    except: pass
+    return None
+    
 def scan_local_models():
     """Scans for models in ./models."""
     base_dir = "."
@@ -419,6 +495,11 @@ class AudiobookEngine:
              if torch.cuda.is_available(): torch.cuda.manual_seed(seed)
              if torch.backends.mps.is_available(): torch.mps.manual_seed(seed)
         
+        # MEMORY FIX: Force garbage collection at start
+        gc.collect()
+        if torch.cuda.is_available(): torch.cuda.empty_cache()
+        if torch.backends.mps.is_available(): torch.mps.empty_cache()
+        
         # 1. Parse & Analyze
         parsed = self.parse_script(script_text)
         tasks = [] # List of dict with metadata
@@ -496,24 +577,30 @@ class AudiobookEngine:
                                  fpath = os.path.join("./voices", vc)
                                  payload = torch.load(fpath, map_location="cpu")
                                  items = [VoiceClonePromptItem(**x) for x in payload["items"]]
-                                 w_list, _sr = MANAGER.tts.generate_voice_clone(
-                                     text=txt, 
-                                     language=language, 
-                                     voice_clone_prompt=items,
-                                     temperature=temperature, 
-                                     top_p=top_p
-                                 )
+                                 
+                                 # MEMORY FIX: No Grad context to prevent graph growth
+                                 with torch.no_grad():
+                                     w_list, _sr = MANAGER.tts.generate_voice_clone(
+                                         text=txt, 
+                                         language=language, 
+                                         voice_clone_prompt=items,
+                                         temperature=temperature, 
+                                         top_p=top_p
+                                     )
                                  wav = w_list[0]; sr = _sr
+                                 del payload, items # Explicit delete
                                  
                             elif m_type == "custom_voice":
                                  spk = vc.split("|")[0].replace("⚫", "").strip()
-                                 w_list, _sr = MANAGER.tts.generate_custom_voice(
-                                     text=txt, 
-                                     speaker=spk, 
-                                     language=language,
-                                     temperature=temperature, 
-                                     top_p=top_p
-                                 )
+                                 # MEMORY FIX: No Grad context
+                                 with torch.no_grad():
+                                     w_list, _sr = MANAGER.tts.generate_custom_voice(
+                                         text=txt, 
+                                         speaker=spk, 
+                                         language=language, 
+                                         temperature=temperature, 
+                                         top_p=top_p
+                                     )
                                  wav = w_list[0]; sr = _sr
                                  
                             if wav is not None:
@@ -542,6 +629,12 @@ class AudiobookEngine:
                         
                 except Exception as e:
                     log(f"  -> Error Line {task['index']}: {e}")
+                    import traceback
+                    traceback.print_exc()
+
+             # MEMORY FIX: Cleanup after each group loop
+            gc.collect()
+            if torch.backends.mps.is_available(): torch.mps.empty_cache()
             
             # End of Group: Optional cleanup?
             # We let smart_switch handle next cleanup
@@ -717,29 +810,61 @@ def run_voice_clone(ref_aud, ref_txt, use_xvec, text, lang_disp, t, p, k, r):
         _, lang_map = _build_choices_and_map(supported_langs)
         language = lang_map.get(lang_disp, "Auto")
 
-        wavs, sr = model.generate_voice_clone(
-            text=text, language=language, ref_audio=at, ref_text=ref_txt, x_vector_only_mode=use_xvec,
-            **_gen_kwargs(t, p, k, r)
-        )
-        return _wav_to_gradio_audio(wavs[0], sr), "Success (生成成功)."
+        # AUTO-SLICE LOGIC
+        chunks = smart_split_text(text, max_len=300)
+        print(f"DEBUG: Text length {len(text)}. Sliced into {len(chunks)} chunks.")
+        
+        full_wav_list = []
+        final_sr = 24000
+        
+        for idx, chunk in enumerate(chunks):
+            # SAFETEY CHECK: Skip empty or punctuation-only chunks
+            if not any(c.isalnum() for c in chunk):
+                print(f"Skipping junk chunk {idx}: '{chunk}'")
+                continue
+                
+            print(f"Processing chunk {idx+1}/{len(chunks)} ({len(chunk)} chars)...")
+            
+            # MEMORY SAFE CALL
+            gc.collect() 
+            if torch.backends.mps.is_available(): torch.mps.empty_cache()
+            
+            with torch.no_grad():
+                wavs, _sr = model.generate_voice_clone(
+                    text=chunk, language=language, ref_audio=at, ref_text=ref_txt, x_vector_only_mode=use_xvec,
+                    **_gen_kwargs(t, p, k, r)
+                )
+            
+            w = wavs[0]
+            # Trim & Pad
+            w = AudiobookEngine.trim_audio(w)
+            w = np.concatenate([w, AudiobookEngine.generate_silence(0.3, _sr)]) # 0.3s pause between chunks
+            
+            full_wav_list.append(w)
+            final_sr = _sr
+            
+        merged = np.concatenate(full_wav_list)
+        return _wav_to_gradio_audio(merged, final_sr), f"Success (Sliced {len(chunks)} parts)."
     except Exception as e:
         traceback.print_exc()
         return None, f"Error: {e}"
 
 def save_voice_named(ref_aud, ref_txt, use_xvec, name):
-    # Ensure Base model is loaded for prompt creation
+    # 1. Validate inputs first (avoid unnecessary model load)
+    at = _audio_to_tuple(ref_aud)
+    if at is None: return "Error: Audio required."
+    if not name or not name.strip(): return "Error: Name required."
+    
+    name = "".join(x for x in name if x.isalnum() or x in " _-")
+
+    # 2. Ensure Base model is loaded for prompt creation
     success, msg = MANAGER.smart_switch("base")
     if not success: return f"Error switching to base model: {msg}"
     
     model = MANAGER.tts
     if model is None: return "Error: Model failed to load."
+    
     try:
-        at = _audio_to_tuple(ref_aud)
-        if at is None: return "Error: Audio required."
-        if not name or not name.strip(): return "Error: Name required."
-        
-        name = "".join(x for x in name if x.isalnum() or x in " _-")
-        
         items = model.create_voice_clone_prompt(
             ref_audio=at, ref_text=ref_txt, x_vector_only_mode=use_xvec,
         )
@@ -761,12 +886,16 @@ def save_designed_voice_logic(audio_info, text, name):
     
     # We reuse saving logic from Clone tab
     # save_voice_named handles the audio conversion (and switches to base)
-    res = save_voice_named(audio_info, text, False, name)
     
-    if "Error" not in res:
-        # Auto-restore Voice Design model so user can continue designing
+    try:
+        res = save_voice_named(audio_info, text, False, name)
+    finally:
+        # Always auto-restore Voice Design model so user can continue designing
+        # regardless of save success/failure
         MANAGER.smart_switch("voice_design")
-        return res + " (Switched back to Design Mode)"
+        
+    if "Error" not in res:
+        return res + "\n(Success! Design Model Reloaded & Ready)"
     
     return res
 
@@ -794,11 +923,39 @@ def run_my_voice_logic(text, lang_disp, voice_file, instruct, t, p, k, r):
         _, lang_map = _build_choices_and_map(supported_langs)
         language = lang_map.get(lang_disp, "Auto")
 
-        wavs, sr = model.generate_voice_clone(
-            text=text, language=language, voice_clone_prompt=items,
-            **_gen_kwargs(t, p, k, r)
-        )
-        return _wav_to_gradio_audio(wavs[0], sr), "Success."
+        # AUTO-SLICE LOGIC
+        chunks = smart_split_text(text, max_len=300)
+        print(f"DEBUG: MyVoice - Text length {len(text)}. Sliced into {len(chunks)} chunks.")
+        
+        full_wav_list = []
+        final_sr = 24000
+        
+        for idx, chunk in enumerate(chunks):
+            # SAFETEY CHECK: Skip empty or punctuation-only chunks
+            if not any(c.isalnum() for c in chunk):
+                continue
+                
+            print(f"Processing chunk {idx+1}/{len(chunks)}...")
+            
+            # MEMORY SAFE CALL
+            gc.collect()
+            if torch.backends.mps.is_available(): torch.mps.empty_cache()
+            
+            with torch.no_grad():
+                wavs, _sr = model.generate_voice_clone(
+                    text=chunk, language=language, voice_clone_prompt=items,
+                    **_gen_kwargs(t, p, k, r)
+                )
+            
+            w = wavs[0]
+            w = AudiobookEngine.trim_audio(w)
+            w = np.concatenate([w, AudiobookEngine.generate_silence(0.3, _sr)])
+            
+            full_wav_list.append(w)
+            final_sr = _sr
+
+        merged = np.concatenate(full_wav_list)
+        return _wav_to_gradio_audio(merged, final_sr), f"Success (Sliced {len(chunks)} parts)."
     except Exception as e:
         traceback.print_exc()
         return None, f"Error: {e}"
@@ -842,11 +999,36 @@ def run_custom_voice_logic(text, lang_disp, spk_choice, instruct, t, p, k, r):
         _, lang_map = _build_choices_and_map(supported_langs)
         language = lang_map.get(lang_disp, "Auto")
         
-        wavs, sr = model.generate_custom_voice(
-            text=text, language=language, speaker=spk_clean, instruct=instruct,
-            **_gen_kwargs(t, p, k, r)
-        )
-        yield _wav_to_gradio_audio(wavs[0], sr), "Success."
+        # AUTO-SLICE LOGIC
+        chunks = smart_split_text(text, max_len=300)
+        full_wav_list = []
+        final_sr = 24000
+        
+        for idx, chunk in enumerate(chunks):
+            # SAFETEY CHECK
+            if not any(c.isalnum() for c in chunk):
+                continue
+                
+            yield None, f"Generating Part {idx+1}/{len(chunks)}..."
+            
+            gc.collect()
+            if torch.backends.mps.is_available(): torch.mps.empty_cache()
+            
+            with torch.no_grad():
+                wavs, _sr = model.generate_custom_voice(
+                    text=chunk, language=language, speaker=spk_clean, instruct=instruct,
+                    **_gen_kwargs(t, p, k, r)
+                )
+            
+            w = wavs[0]
+            w = AudiobookEngine.trim_audio(w)
+            w = np.concatenate([w, AudiobookEngine.generate_silence(0.3, _sr)])
+            
+            full_wav_list.append(w)
+            final_sr = _sr
+            
+        merged = np.concatenate(full_wav_list)
+        yield _wav_to_gradio_audio(merged, final_sr), f"Success ({len(chunks)} parts)."
     except Exception as e: 
         yield None, f"Error: {e}"
 
