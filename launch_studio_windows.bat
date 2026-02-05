@@ -33,6 +33,17 @@ if exist "%ENV_DIR%" (
     echo        This keeps your global system clean.
     echo        This may take a few minutes...
     
+    echo 🌍 Select your region for faster download / 选择您的地区以加速下载:
+    echo 1. Global / 全球 (Default)
+    echo 2. China  / 中国 (Tsinghua Mirror / 清华源)
+    set /p region_choice="Enter 1 or 2: "
+    
+    set "PIP_MIRROR="
+    if "%region_choice%"=="2" (
+        echo [INFO] Using Tsinghua Mirror for Pip...
+        set "PIP_MIRROR=-i https://pypi.tuna.tsinghua.edu.cn/simple"
+    )
+
     echo [INIT] Creating base Python 3.10 environment with ffmpeg...
     call conda create -p "%ENV_DIR%" python=3.10 ffmpeg -y
     
@@ -43,8 +54,8 @@ if exist "%ENV_DIR%" (
     )
     
     echo [INSTALL] Installing dependencies via Pip...
-    "%ENV_DIR%\python.exe" -m pip install --upgrade pip
-    "%ENV_DIR%\python.exe" -m pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu121
+    "%ENV_DIR%\python.exe" -m pip install --upgrade pip %PIP_MIRROR%
+    "%ENV_DIR%\python.exe" -m pip install -r requirements.txt %PIP_MIRROR% --extra-index-url https://download.pytorch.org/whl/cu121
     
     if %errorlevel% neq 0 (
         echo [ERROR] Pip install failed!

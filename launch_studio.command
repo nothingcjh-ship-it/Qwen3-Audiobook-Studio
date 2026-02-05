@@ -36,9 +36,22 @@ else
     echo "       This keeps your global system clean."
     echo "       This process may take a few minutes..."
     
-    # [TURBO MODE]
     # Strategy: Create bare Python env (fast) -> Use Pip (fast)
     # This avoids Conda's slow "Solving environment" step completely.
+    
+    # 2.1 Ask for Region (Mirror Selection)
+    echo "--------------------------------------------------"
+    echo "🌍 Select your region for faster download / 选择您的地区以加速下载:"
+    echo "1. Global / 全球 (Default)"
+    echo "2. China  / 中国 (Tsinghua Mirror / 清华源)"
+    read -p "Enter 1 or 2: " region_choice
+    echo "--------------------------------------------------"
+
+    PIP_MIRROR=""
+    if [ "$region_choice" == "2" ]; then
+        echo "[INFO] Using Tsinghua Mirror for Pip..."
+        PIP_MIRROR="-i https://pypi.tuna.tsinghua.edu.cn/simple"
+    fi
     
     echo "[INIT] Creating base Python 3.10 environment with ffmpeg..."
     conda create -p "$ENV_DIR" python=3.10 ffmpeg -y
@@ -49,8 +62,8 @@ else
     fi
     
     echo "[INSTALL] Installing dependencies via Pip..."
-    "$ENV_DIR/bin/pip" install --upgrade pip
-    "$ENV_DIR/bin/pip" install -r requirements.txt
+    "$ENV_DIR/bin/pip" install --upgrade pip $PIP_MIRROR
+    "$ENV_DIR/bin/pip" install -r requirements.txt $PIP_MIRROR
     
     if [ $? -ne 0 ]; then
          echo "[ERROR] Pip install failed."
