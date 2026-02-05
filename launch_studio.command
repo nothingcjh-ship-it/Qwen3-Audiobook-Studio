@@ -40,8 +40,8 @@ else
     # Strategy: Create bare Python env (fast) -> Use Pip (fast)
     # This avoids Conda's slow "Solving environment" step completely.
     
-    echo "[INIT] Creating base Python 3.10 environment..."
-    conda create -p "$ENV_DIR" python=3.10 -y
+    echo "[INIT] Creating base Python 3.10 environment with ffmpeg..."
+    conda create -p "$ENV_DIR" python=3.10 ffmpeg -y
     
     if [ $? -ne 0 ]; then
         echo "[ERROR] Failed to create environment!"

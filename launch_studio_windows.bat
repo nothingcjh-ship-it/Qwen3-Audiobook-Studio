@@ -33,14 +33,25 @@ if exist "%ENV_DIR%" (
     echo        This keeps your global system clean.
     echo        This may take a few minutes...
     
-    :: Use generic environment.yml for Windows (lockfile is Mac only)
-    call conda env create -p "%ENV_DIR%" -f environment.yml
+    echo [INIT] Creating base Python 3.10 environment with ffmpeg...
+    call conda create -p "%ENV_DIR%" python=3.10 ffmpeg -y
     
     if %errorlevel% neq 0 (
         echo [ERROR] Failed to create environment!
         pause
         exit /b
     )
+    
+    echo [INSTALL] Installing dependencies via Pip...
+    "%ENV_DIR%\python.exe" -m pip install --upgrade pip
+    "%ENV_DIR%\python.exe" -m pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu121
+    
+    if %errorlevel% neq 0 (
+        echo [ERROR] Pip install failed!
+        pause
+        exit /b
+    )
+    
     echo [OK] Environment created successfully!
 )
 
