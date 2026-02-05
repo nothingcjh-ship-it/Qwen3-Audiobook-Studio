@@ -39,18 +39,17 @@ else
     # Strategy: Create bare Python env (fast) -> Use Pip (fast)
     # This avoids Conda's slow "Solving environment" step completely.
     
-    # 2.1 Ask for Region (Mirror Selection)
-    echo "--------------------------------------------------"
-    echo "🌍 Select your region for faster download / 选择您的地区以加速下载:"
-    echo "1. Global / 全球 (Default)"
-    echo "2. China  / 中国 (Tsinghua Mirror / 清华源)"
-    read -p "Enter 1 or 2: " region_choice
-    echo "--------------------------------------------------"
-
+    # 2.1 Auto-Detect Region (Silent)
+    # If user's system locale is China (zh_CN), use Tsinghua mirror automatically.
+    # This avoids asking the user, keeping the startup consistent with tutorials.
+    
     PIP_MIRROR=""
-    if [ "$region_choice" == "2" ]; then
-        echo "[INFO] Using Tsinghua Mirror for Pip..."
-        PIP_MIRROR="-i https://pypi.tuna.tsinghua.edu.cn/simple"
+    if command -v defaults &> /dev/null; then
+        USER_LOCALE=$(defaults read -g AppleLocale 2>/dev/null)
+        if [[ "$USER_LOCALE" == *"zh_CN"* ]]; then
+            echo "[INFO] Detected China Locale ($USER_LOCALE). Using Tsinghua Mirror for acceleration..."
+            PIP_MIRROR="-i https://pypi.tuna.tsinghua.edu.cn/simple"
+        fi
     fi
     
     echo "[INIT] Creating base Python 3.10 environment with ffmpeg..."

@@ -33,14 +33,14 @@ if exist "%ENV_DIR%" (
     echo        This keeps your global system clean.
     echo        This may take a few minutes...
     
-    echo 🌍 Select your region for faster download / 选择您的地区以加速下载:
-    echo 1. Global / 全球 (Default)
-    echo 2. China  / 中国 (Tsinghua Mirror / 清华源)
-    set /p region_choice="Enter 1 or 2: "
+    :: 2.1 Auto-Detect Region (Silent)
+    :: Checks system locale. If zh-CN, use mirror automatically.
     
     set "PIP_MIRROR="
-    if "%region_choice%"=="2" (
-        echo [INFO] Using Tsinghua Mirror for Pip...
+    for /f "tokens=3" %%a in ('reg query "HKCU\Control Panel\International" /v LocaleName ^| find "LocaleName"') do set USER_LOCALE=%%a
+    
+    if /i "%USER_LOCALE%"=="zh-CN" (
+        echo [INFO] Detected China Locale. Using Tsinghua Mirror for acceleration...
         set "PIP_MIRROR=-i https://pypi.tuna.tsinghua.edu.cn/simple"
     )
 
