@@ -19,8 +19,11 @@ models/
 
 # Project Data
 outputs/
+voices/
+!voices/*.example.pt
 presets.json
 *.log
 
 # Git ignore link
 .agent/
+test_split.py
