@@ -9,13 +9,23 @@ Final Polish: 9 Official Roles, Smart Availability Check, Auto-Download.
 print("Script started...")
 
 import argparse
+import gc
+import re
+import threading
+from collections import defaultdict
+
+# Global lock to prevent duplicate concurrent generations
+_generation_lock = threading.Lock()
+_active_generations = defaultdict(bool)
+import logging
 import os
 import tempfile
 import traceback
 import glob
 import json
-import gc
+from collections import defaultdict
 from dataclasses import asdict
+from time import time
 from typing import Any, Dict, List, Optional, Tuple
 
 import gradio as gr
@@ -828,6 +838,18 @@ def on_select_role(evt: gr.SelectData, data):
 # --- Logic Functions ---
 
 def run_voice_clone(ref_aud, ref_txt, use_xvec, text, lang_disp, t, p, k, r):
+    # Prevent duplicate concurrent execution
+    gen_id = f"clone_{id(text)}_{len(text)}"
+    if _active_generations.get(gen_id, False):
+        return None, "Generation already in progress, please wait..."
+    
+    _active_generations[gen_id] = True
+    try:
+        return _run_voice_clone_internal(ref_aud, ref_txt, use_xvec, text, lang_disp, t, p, k, r)
+    finally:
+        _active_generations[gen_id] = False
+
+def _run_voice_clone_internal(ref_aud, ref_txt, use_xvec, text, lang_disp, t, p, k, r):
     model, err = _check_model_ready("base")
     if err: return None, err
     try:
@@ -933,6 +955,18 @@ def get_my_voices_list():
     return files
 
 def run_my_voice_logic(text, lang_disp, voice_file, instruct, t, p, k, r):
+    # Prevent duplicate concurrent execution
+    gen_id = f"myvoice_{voice_file}_{len(text)}"
+    if _active_generations.get(gen_id, False):
+        return None, "Generation already in progress, please wait..."
+    
+    _active_generations[gen_id] = True
+    try:
+        return _run_my_voice_logic_internal(text, lang_disp, voice_file, instruct, t, p, k, r)
+    finally:
+        _active_generations[gen_id] = False
+
+def _run_my_voice_logic_internal(text, lang_disp, voice_file, instruct, t, p, k, r):
     model, err = _check_model_ready("base")
     if err: return None, err
     try:
