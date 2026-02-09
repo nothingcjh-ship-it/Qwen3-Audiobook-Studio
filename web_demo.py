@@ -776,7 +776,6 @@ def save_preset_logic(name, current_state):
         if not name or not name.strip(): return "Error: Name cannot be empty.", gr.update()
         if not current_state: return "Error: Cast is empty.", gr.update()
         
-        print(f"DEBUG: Saving Preset '{name}' StateType={type(current_state)} Content={current_state}")
         
         data = {}
         if os.path.exists(PRESETS_FILE):
@@ -842,7 +841,6 @@ def run_voice_clone(ref_aud, ref_txt, use_xvec, text, lang_disp, t, p, k, r):
 
         # AUTO-SLICE LOGIC
         chunks = smart_split_text(text, max_len=300)
-        print(f"DEBUG: Text length {len(text)}. Sliced into {len(chunks)} chunks.")
         
         full_wav_list = []
         final_sr = 24000
@@ -850,10 +848,8 @@ def run_voice_clone(ref_aud, ref_txt, use_xvec, text, lang_disp, t, p, k, r):
         for idx, chunk in enumerate(chunks):
             # SAFETEY CHECK: Skip empty or punctuation-only chunks
             if not any(c.isalnum() for c in chunk):
-                print(f"Skipping junk chunk {idx}: '{chunk}'")
                 continue
                 
-            print(f"Processing chunk {idx+1}/{len(chunks)} ({len(chunk)} chars)...")
             
             # MEMORY SAFE CALL
             gc.collect() 
@@ -956,7 +952,6 @@ def run_my_voice_logic(text, lang_disp, voice_file, instruct, t, p, k, r):
 
         # AUTO-SLICE LOGIC
         chunks = smart_split_text(text, max_len=300)
-        print(f"DEBUG: MyVoice - Text length {len(text)}. Sliced into {len(chunks)} chunks.")
         
         full_wav_list = []
         final_sr = 24000
@@ -966,7 +961,6 @@ def run_my_voice_logic(text, lang_disp, voice_file, instruct, t, p, k, r):
             if not any(c.isalnum() for c in chunk):
                 continue
                 
-            print(f"Processing chunk {idx+1}/{len(chunks)}...")
             
             # MEMORY SAFE CALL
             gc.collect()
