@@ -12,7 +12,12 @@ import argparse
 import gc
 import re
 import threading
+import warnings
 from collections import defaultdict
+
+# Suppress noisy warnings from transformers
+warnings.filterwarnings("ignore", message=".*pad_token_id.*")
+warnings.filterwarnings("ignore", category=UserWarning, module="gradio")
 
 # Global lock to prevent duplicate concurrent generations
 _generation_lock = threading.Lock()
@@ -862,12 +867,15 @@ def _run_voice_clone_internal(ref_aud, ref_txt, use_xvec, text, lang_disp, t, p,
         language = lang_map.get(lang_disp, "Auto")
 
         # AUTO-SLICE LOGIC
+        print(f"[PROGRESS] Generating audio from {len(text)} chars...")
         chunks = smart_split_text(text, max_len=300)
+        print(f"[PROGRESS] Text split into {len(chunks)} chunks.")
         
         full_wav_list = []
         final_sr = 24000
         
         for idx, chunk in enumerate(chunks):
+            print(f"[PROGRESS] Processing chunk {idx+1}/{len(chunks)}...")
             # SAFETEY CHECK: Skip empty or punctuation-only chunks
             if not any(c.isalnum() for c in chunk):
                 continue
@@ -985,14 +993,17 @@ def _run_my_voice_logic_internal(text, lang_disp, voice_file, instruct, t, p, k,
         language = lang_map.get(lang_disp, "Auto")
 
         # AUTO-SLICE LOGIC
+        print(f"[PROGRESS] Generating audio from {len(text)} chars...")
         chunks = smart_split_text(text, max_len=300)
         
         full_wav_list = []
+        print(f"[PROGRESS] Text split into {len(chunks)} chunks.")
         final_sr = 24000
         
         for idx, chunk in enumerate(chunks):
             # SAFETEY CHECK: Skip empty or punctuation-only chunks
             if not any(c.isalnum() for c in chunk):
+            print(f"[PROGRESS] Processing chunk {idx+1}/{len(chunks)}...")
                 continue
                 
             
@@ -1029,6 +1040,7 @@ def run_voice_design(text, lang_disp, instruct, t, p, k, r):
         language = lang_map.get(lang_disp, "Auto")
         
         # AUTO-SLICE LOGIC
+        print(f"[PROGRESS] Generating audio from {len(text)} chars...")
         chunks = smart_split_text(text, max_len=300)
         full_wav_list = []
         final_sr = 24000
@@ -1090,6 +1102,7 @@ def run_custom_voice_logic(text, lang_disp, spk_choice, instruct, t, p, k, r):
         language = lang_map.get(lang_disp, "Auto")
         
         # AUTO-SLICE LOGIC
+        print(f"[PROGRESS] Generating audio from {len(text)} chars...")
         chunks = smart_split_text(text, max_len=300)
         full_wav_list = []
         final_sr = 24000
