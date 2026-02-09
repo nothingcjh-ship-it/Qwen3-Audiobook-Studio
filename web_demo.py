@@ -980,6 +980,7 @@ def run_my_voice_logic(text, lang_disp, voice_file, instruct, t, p, k, r):
             
             w = wavs[0]
             w = AudiobookEngine.trim_audio(w)
+            w = AudiobookEngine.normalize_audio(w)  # Ensure consistent volume
             w = np.concatenate([w, AudiobookEngine.generate_silence(0.3, _sr)])
             
             full_wav_list.append(w)
@@ -1083,6 +1084,7 @@ def run_custom_voice_logic(text, lang_disp, spk_choice, instruct, t, p, k, r):
             
             w = wavs[0]
             w = AudiobookEngine.trim_audio(w)
+            w = AudiobookEngine.normalize_audio(w)  # Ensure consistent volume
             w = np.concatenate([w, AudiobookEngine.generate_silence(0.3, _sr)])
             
             full_wav_list.append(w)
