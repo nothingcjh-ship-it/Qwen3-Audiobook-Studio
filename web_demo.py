@@ -458,6 +458,33 @@ class AudiobookEngine:
     def generate_silence(duration_sec, sr=24000):
         if duration_sec <= 0: return np.array([], dtype=np.float32)
         return np.zeros(int(sr * duration_sec), dtype=np.float32)
+    
+    @staticmethod
+    def normalize_audio(wav, target_rms=0.1):
+        """
+        Normalize audio to consistent RMS level to prevent volume fluctuations.
+        This ensures all chunks have similar loudness when concatenated.
+        """
+        if len(wav) == 0:
+            return wav
+        
+        # Calculate current RMS
+        current_rms = np.sqrt(np.mean(wav**2))
+        
+        # Avoid division by zero and skip if audio is silent
+        if current_rms < 1e-6:
+            return wav
+        
+        # Scale to target RMS
+        scaling_factor = target_rms / current_rms
+        normalized = wav * scaling_factor
+        
+        # Prevent clipping
+        max_val = np.abs(normalized).max()
+        if max_val > 0.95:
+            normalized = normalized * (0.95 / max_val)
+        
+        return normalized
 
     @staticmethod
     def trim_audio(wav, threshold=0.01):
@@ -839,8 +866,9 @@ def run_voice_clone(ref_aud, ref_txt, use_xvec, text, lang_disp, t, p, k, r):
                 )
             
             w = wavs[0]
-            # Trim & Pad
+            # Trim & Normalize & Pad
             w = AudiobookEngine.trim_audio(w)
+            w = AudiobookEngine.normalize_audio(w)  # Ensure consistent volume
             w = np.concatenate([w, AudiobookEngine.generate_silence(0.3, _sr)]) # 0.3s pause between chunks
             
             full_wav_list.append(w)
@@ -997,6 +1025,7 @@ def run_voice_design(text, lang_disp, instruct, t, p, k, r):
             
             w = wavs[0]
             w = AudiobookEngine.trim_audio(w)
+            w = AudiobookEngine.normalize_audio(w)  # Ensure consistent volume
             # Short pause for design flow
             w = np.concatenate([w, AudiobookEngine.generate_silence(0.2, _sr)])
             
